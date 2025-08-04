@@ -28,10 +28,7 @@
  * no need for double-checking.
  */
 
-#ifndef PTHREAD_C
-#define PTHREAD_C
-
-#include "pthread.h"
+#include "../threading.h"
 
 #include "stdio.h"
 #include "stdlib.h"
@@ -50,12 +47,12 @@ void die(const char *err, ...)
 
 static unsigned __stdcall win32_start_routine(void *arg)
 {
-	pthread_t *thread = (pthread_t*)arg;
+	blosc2_pthread_t *thread = (blosc2_pthread_t*)arg;
 	thread->arg = thread->start_routine(thread->arg);
 	return 0;
 }
 
-int pthread_create(pthread_t *thread, const void *unused,
+int blosc2_pthread_create(blosc2_pthread_t *thread, const void *unused,
 		           void *(*start_routine)(void*), void *arg)
 {
 	PTHREAD_UNUSED_PARAM(unused);
@@ -70,7 +67,7 @@ int pthread_create(pthread_t *thread, const void *unused,
 		return 0;
 }
 
-int win32_pthread_join(pthread_t *thread, void **value_ptr)
+int blosc2_pthread_join_impl(blosc2_pthread_t *thread, void **value_ptr)
 {
 	DWORD result = WaitForSingleObject(thread->handle, INFINITE);
 	switch (result) {
@@ -87,7 +84,7 @@ int win32_pthread_join(pthread_t *thread, void **value_ptr)
 	}
 }
 
-int pthread_cond_init(pthread_cond_t *cond, const void *unused)
+int blosc2_pthread_cond_init(blosc2_pthread_cond_t *cond, const void *unused)
 {
 	PTHREAD_UNUSED_PARAM(unused);
 	cond->waiters = 0;
@@ -108,7 +105,7 @@ int pthread_cond_init(pthread_cond_t *cond, const void *unused)
 	return 0;
 }
 
-int pthread_cond_destroy(pthread_cond_t *cond)
+int blosc2_pthread_cond_destroy(blosc2_pthread_cond_t *cond)
 {
 	CloseHandle(cond->sema);
 	CloseHandle(cond->continue_broadcast);
@@ -116,7 +113,7 @@ int pthread_cond_destroy(pthread_cond_t *cond)
 	return 0;
 }
 
-int pthread_cond_wait(pthread_cond_t *cond, CRITICAL_SECTION *mutex)
+int blosc2_pthread_cond_wait(blosc2_pthread_cond_t *cond, CRITICAL_SECTION *mutex)
 {
 	int last_waiter;
 
@@ -170,11 +167,11 @@ int pthread_cond_wait(pthread_cond_t *cond, CRITICAL_SECTION *mutex)
 }
 
 /*
- * IMPORTANT: This implementation requires that pthread_cond_signal
+ * IMPORTANT: This implementation requires that blosc2_pthread_cond_signal
  * is called while the mutex is held that is used in the corresponding
- * pthread_cond_wait calls!
+ * blosc2_pthread_cond_wait calls!
  */
-int pthread_cond_signal(pthread_cond_t *cond)
+int blosc2_pthread_cond_signal(blosc2_pthread_cond_t *cond)
 {
 	int have_waiters;
 
@@ -193,11 +190,11 @@ int pthread_cond_signal(pthread_cond_t *cond)
 }
 
 /*
- * DOUBLY IMPORTANT: This implementation requires that pthread_cond_broadcast
+ * DOUBLY IMPORTANT: This implementation requires that blosc2_pthread_cond_broadcast
  * is called while the mutex is held that is used in the corresponding
- * pthread_cond_wait calls!
+ * blosc2_pthread_cond_wait calls!
  */
-int pthread_cond_broadcast(pthread_cond_t *cond)
+int blosc2_pthread_cond_broadcast(blosc2_pthread_cond_t *cond)
 {
 	EnterCriticalSection(&cond->waiters_lock);
 
@@ -225,5 +222,3 @@ int pthread_cond_broadcast(pthread_cond_t *cond)
 	}
 	return 0;
 }
-
-#endif /* PTHREAD_C */
